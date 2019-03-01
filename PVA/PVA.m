@@ -23,4 +23,3 @@ function output=PVA(b,pos,spk)
     output=pv/nn;
     
 end
-

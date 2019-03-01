@@ -34,3 +34,25 @@ for i=1:len
     u(:,i)=(d/nn)*u(:,i);
 end
 end
+
+
+
+len=length(trainX);
+for i=1:len
+    if(trainY(2,i)<0)
+        svm_train(i,1)=-1;
+        svm_train(i,2:end)=trainY(:,i);
+    elseif(trianY(2,i)>0)
+        svm_train(i,1)=1;
+        svm_train(i,2:end)=trainY(:,i);
+    else
+        svm_train(i,:)=0; 
+    end
+end
+
+for i=1:len
+    if(svm_train(i,1)==0)
+        svm_train(i,:)=[];
+        i=i-1;
+    end
+end
