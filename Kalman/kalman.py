@@ -16,12 +16,13 @@ class kalman(object):
         self.H = np.dot(x, y.T) * np.linalg.pinv(np.dot(y, y.T))
         self.W = np.dot(ypos - np.dot(self.A, ypre), (ypos - self.A * ypre).T) / (t - 1)
         self.Q = np.dot(x - np.dot(self.H, y), (x - np.dot(self.H, y)).T) / t
+        self.P = np.dot(y, y.T) / t
     
-    def testkf(self, x, y):
+    def testkf(self, x):
         [m, t] = np.shape(x)
-        [n, t] = np.shape(y)       
-        prediction = np.zeros([n, t])
-        P = self.W
+        n = np.shape(self.A) 
+        prediction = np.zeros([n[0], t])
+        P = self.P
         for i in range(1, t):
             x_m = np.dot(self.A, prediction[:, i-1])
             P_m = np.dot(np.dot(self.A, P), self.A.T) + self.W

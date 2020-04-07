@@ -1,25 +1,50 @@
 import numpy as np 
 import os
 import sys
+from matplotlib import pyplot as plt
 from ReadTrainPath import ReadTrainPath
-sys.path.append(r'F:\\PythonProject\\Algorithm\\Kalman')
+if os.name=='posix':
+    sys.path.append(r'/media/frank/File/Pressoject/PythonProject/Algorithm/UKF')
+elif os.name=='nt':
+    sys.path.append(r'F:\\PythonProject\\Algorithm\\Kalman')
+# from Kalman.kalman import kalman
 from Kalman.kalman import kalman
-trainPath = os.path.abspath('.') + '\\dataset\\train.txt'
-testPath = os.path.abspath('.') + '\\dataset\\test.txt'
+from UKF.ukf import ukf
+if os.name=='posix':
+    trainPath = os.path.abspath('.') + '/Data/train.txt'
+    testPath = os.path.abspath('.') + '/Data/test.txt'
+elif os.name=='nt':
+    trainPath = os.path.abspath('.') + '\\Data\\train.txt'
+    testPath = os.path.abspath('.') + '\\Data\\test.txt'
+    
+TrainX, TrainY = ReadTrainPath(trainPath, 'train')
+TestX = ReadTrainPath(testPath, 'test')
+# two types of Test DataSet
+TrainX = TrainX[:, 0:-500]
+TrainY = TrainY[:, 0:-500]
+TestX = TrainX[:, -500:]
+TestY = TrainY[:, -500:]
 
-x, y = ReadTrainPath(trainPath)
-xDim, dataLen = np.shape(x)
-yDim, dataLen = np.shape(y)
-trainIdx = int(xDim * 0.8)
-xTrain = x[:, 0:trainIdx]
-yTrain = y[:, 0:trainIdx]
-xTest = x[:, trainIdx+1:]
-yTest = y[:, trainIdx+1:]
-kfmodel = kalman()
-kfmodel.trainkf(xTrain, yTrain)
-prediction = kfmodel.testkf(xTest, yTest)
-cc = np.zeros([1, yDim])
-for i in range(0, yDim):
-    temp = np.corrcoef(prediction[i, :], yTest[i, :])
+xTrainDim, TrainLen = np.shape(TrainX)
+yTrainDim, TrainLen = np.shape(TrainY)
+xTestDim, TestLen = np.shape(TestX)
+
+# kalman filter
+kfModel = kalman()
+kfModel.trainkf(TrainX, TrainY)
+predictionKF = kfModel.testkf(TestX)
+
+# unscented kalman filter
+ukfModel = ukf()
+ukfModel.trainukf(TrainX, TrainY)
+predictionUKF = ukfModel.testukf(TestX)
+cc = np.zeros([1, yTrainDim])
+for i in range(0, yTrainDim):
+    temp = np.corrcoef(predictionKF[i, :], TestY[i, :])
     cc[0, i] = temp[0, 1]
 print("cc: ", cc)
+
+# plot the result
+pltX = range(len(predictionUKF[0, :]))
+plt.plot(pltX, predictionUKF[0, :])
+plt.show()
