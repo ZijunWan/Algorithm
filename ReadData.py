@@ -1,5 +1,5 @@
 import numpy as np
-def ReadTrainPath(dpath, type):
+def ReadData(dpath, type):
     # dpath: data path
     # type: train data or test data
     if type != 'train' and type != 'test':

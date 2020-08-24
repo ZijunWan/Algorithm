@@ -2,12 +2,7 @@ import numpy as np
 import os
 import sys
 from matplotlib import pyplot as plt
-from ReadTrainPath import ReadTrainPath
-if os.name=='posix':
-    sys.path.append(r'/media/frank/File/Pressoject/PythonProject/Algorithm/UKF')
-elif os.name=='nt':
-    sys.path.append(r'F:\\PythonProject\\Algorithm\\Kalman')
-# from Kalman.kalman import kalman
+from ReadData import ReadData
 from Kalman.kalman import kalman
 from UKF.ukf import ukf
 if os.name=='posix':
@@ -17,8 +12,9 @@ elif os.name=='nt':
     trainPath = os.path.abspath('.') + '\\Data\\train.txt'
     testPath = os.path.abspath('.') + '\\Data\\test.txt'
     
-TrainX, TrainY = ReadTrainPath(trainPath, 'train')
-TestX = ReadTrainPath(testPath, 'test')
+TrainX, TrainY = ReadData(trainPath, 'train')
+TestX = ReadData(testPath, 'test')
+
 # two types of Test DataSet
 TrainX = TrainX[:, 0:-500]
 TrainY = TrainY[:, 0:-500]
