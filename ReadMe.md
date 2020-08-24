@@ -1,4 +1,6 @@
-# 注意事项
+# Machine Learning Repository
 
-1. 数据存放在Dataset文件夹中，位置：F:\dataset\MoveData
-
+- Language: python3
+- DataSet: From Alibaba TianChi Database
+- No rely on some common machine learning package
+- Store some machine learning algorithm code
