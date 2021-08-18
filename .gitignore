@@ -1,2 +1,10 @@
 .vscode/*
-__pycache__/*
+.idea
+.DS_Store
+__pycache__
+Kalman/__pycache__
+Kalman/__init__.py
+SVM/__pycache__
+UKF/__pycache__
+UKF/__init__.py
+__init__.py

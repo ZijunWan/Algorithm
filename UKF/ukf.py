@@ -2,114 +2,96 @@
 
 import numpy as np
 
-class model(object):
-    def __init__(self):
-        __A = 0
-        __H = 0
-        __Q = 0
-        __R = 0
-        __P = 0
-    def getmodel(self):
-        return self.__A, self.__H, self.__Q, self.__R, self.__P
-    
-    def setmodel(self, A, H, Q, R, P):
-        self.__A = A
-        self.__H = H
-        self.__Q = Q
-        self.__R = R
-        self.__P = P
+class ukf():
+    def __init__(self, get_f, get_g):
+        self.ukf_model = dict()
+        self.get_f = get_f
+        self.get_g = get_g
 
-class ukf(object):
-    ukfModel = 0
+
     def trainukf(self, x, y):
-        self.ukfModel = model
         [m, t] = np.shape(x)
         [n, t] = np.shape(y)
-        ypre = y[:, 0:-1]
-        ypos = y[:, 1:]
-        A = np.dot(np.dot(ypos, ypre.T), np.linalg.pinv(np.dot(ypre, ypre.T)))
-        H = np.dot(x, y.T) * np.linalg.pinv(np.dot(y, y.T))
-        Q = np.dot(ypos - np.dot(A, ypre), (ypos - A * ypre).T) / (t - 1)
-        R = np.dot(x - np.dot(H, y), (x - np.dot(H, y)).T) / t
-        P = np.dot(y, y.T) / t
-        self.ukfModel.setmodel(self.ukfModel, A, H, Q, R, P)
-        return self.ukfModel
+        f, Q = self.get_f(y[:, 0:-1], y[:, 1:])
+        g, R = self.get_g(x, y)
+        self.ukf_model['A'] = lambda x: f(x)
+        self.ukf_model['H'] = lambda x: g(x)
+        self.ukf_model['Q'] = Q
+        self.ukf_model['R'] = R
+        self.ukf_model['P'] = np.dot(y, y.T) / t
+        return self.ukf_model
 
     def testukf(self, x):
-        [A, H, Q, R, P] = self.ukfModel.getmodel(model) 
-        L = 1
+        A = self.ukf_model['A']
+        H = self.ukf_model['H']
+        Q = self.ukf_model['Q']
+        R = self.ukf_model['R']
+        P = self.ukf_model['P']
+        
+        m, t = x.shape
+        n, _ = Q.shape
+        kai = 1
         alpha = 1
-        kalpha = 0
-        beta = 2
-        lamda = 3 - L
-        # y_t = np.vstack((y, np.sqrt(y[1, :]**2 + y[2, :]**2)))
-        # Calculate the UT transform 
-        Wm = np.zeros([1, 2*L+1])
-        Wc = np.zeros([1, 2*L+1])
-        for i in range(2*L+1):
-            Wm[0, i] = 1 / (2 * ( L + lamda))
-            Wc[0, i] = 1 / (2 * (L + lamda))
-        Wm[0] = lamda / (L+lamda)
-        Wc[0] = lamda / (L+lamda) + 1 - alpha**2 + beta
-        [unitNum, t] = np.shape(x)
-        dim = len(A)
-        Xukf = np.zeros([dim, t])
+        beta = 1
+        p_lambda = alpha**2 * (n + kai) - n
+
+        Wm = np.zeros([1, 2*n+1])
+        Wc = np.zeros([1, 2*n+1])
+        for i in range(2*n+1):
+            Wm[0, i] = 1 / (2 * (n + p_lambda))
+            Wc[0, i] = 1 / (2 * (n + p_lambda))
+        Wm[0, 0] = p_lambda / (n+p_lambda)
+        Wc[0, 0] = p_lambda / (n+p_lambda) + 1 - alpha**2 + beta
+        # [unitNum, t] = np.shape(x)
+        # dim = len(A)
+        y_ukf = np.zeros([n, t])
         # initial of prediction
-        Xukf[:, 0] = 0 
-        P0 = np.eye(dim)
+        y_ukf[:, 0] = 0 
+        P0 = np.eye(n)
         for i in range(1, t):
-            xEstimate = Xukf[:, i-1]
+            y_est = y_ukf[:, i-1, None]
             P = P0
             # 1, get the sigma point dataset
-            cho = (np.linalg.cholesky(P*(L+lamda))).T
-            xgamaP1 = np.zeros([dim, L])
-            xgamaP2 = np.zeros([dim, L])
-            for k in range(L):
-                xgamaP1[:, k] = xEstimate + cho[:, k]
-                xgamaP2[:, k] = xEstimate - cho[:, k]
-            xSigma = [xEstimate, xgamaP1, xgamaP2]
+            cho = np.linalg.cholesky(P*(n+p_lambda))
+            y_p1 = np.zeros([n, n])
+            y_p2 = np.zeros([n, n])
+            for k in range(n):
+                y_p1[:, k] = y_est + cho[:, k]
+                y_p2[:, k] = y_est - cho[:, k]
+            y_sigma = np.c_[y_est, y_p1, y_p2]
             # 2, use the sigma point dataset to predict
-            XSigmaPre = A * xSigma
-            XSigmaPre = XSigmaPre.T
-            # 3, Calculate the mean and std error
-            Xpred = np.zeros([dim, 1])
-            for k in range(2*L+1):
-                Xpred = Xpred + Wm[0, k] * XSigmaPre[:, k]
-            Ppred = np.zeros([dim, dim])
-            for k in range(2*L+1):
-                Ppred = Ppred + Wc[0, k] * (XSigmaPre[:, k] - Xpred) * (XSigmaPre[:, k] - Xpred).T
-            Ppred = Ppred + Q
-            # 4, accroding to the prediction, use UT transform, get the new sigma point dataset
-            chor = (np.linalg.cholesky((L*lamda)*Ppred)).T
-            XaugSigmaP1 = np.zeros([dim, L])
-            XaugSigmaP2 = np.zeros([dim, L])
-            for k in range(L):
-                XaugSigmaP1[:, k] = Xpred + chor[:, k]
-                XaugSigmaP2[:, k] = Xpred - chor[:, k]
-            # XaugSigma = [Xpred, XaugSigmaP1, XaugSigmaP2]
-            XaugSigma = np.c_[XaugSigmaP1, XaugSigmaP2]
-            XaugSigma = np.c_[Xpred, XaugSigma]
-            ZsigmaPre = H * XaugSigma
-            Zpred = 0
-            for k in range(2*L+1):
-                Zpred = Zpred + Wm[0, k] *  ZsigmaPre[:, k]
-            Pzz = 0
-            for k in range(2*L+1):
-                # Pzz = Pzz + Wc[0, k] * (ZsigmaPre[:, k] - Zpred) * (ZsigmaPre[:, k] - Zpred).T
-                Ztemp = ZsigmaPre[:, k] - Zpred
-                Pzz = Pzz + Wc[0, k] * np.dot(Ztemp[:, None], Ztemp[:, None].T)
-            Pzz = Pzz + R
-            Pxz = np.zeros([dim, unitNum])
-            for k in range(2*L+1):
-                Pxz = Pxz + Wc[0, k] * (XSigmaPre[:, k] - Xpred) * (ZsigmaPre[:, k] - Zpred).T
-            # K = Pxz * np.linalg.pinv(Pzz)
-            K = np.dot(Pxz, np.linalg.pinv(Pzz))
-            # xEstimate = Xpred + K * (x[:, i] - Zpred)
-            xEstimate = Xpred + np.dot(K, x[:, i] - Zpred)
-            # P = Ppred - K * Pzz * K.T
-            P = Ppred - np.dot(K, np.dot(Pzz, K.T))
-            P0 = P
-            Xukf[:, i] = xEstimate
-        prediction = Xukf[0:1, :]
-        return prediction
+            y_sigma_pred = np.zeros([n, 2*n+1])
+            y_mu = np.zeros([1, n])
+            for k in range(2*n+1):
+                y_sigma_pred[:, k] = A(y_sigma[:, k])
+                y_mu += Wm[0, k] * y_sigma_pred[:, k, None]
+            
+            P_x = Q
+            for k in range(2*n+1):
+                P_x += Wc[0, k] * np.dot((y_sigma_pred[:, k, None] - y_mu), (y_sigma_pred[:, k, None] - y_mu).T)
+            chol_pos = np.linalg.cholesky((n+p_lambda)*P_x)
+
+            for k in range(n):
+                y_p1[:, k] = y_mu + chol_pos[:, k]
+                y_p2[:, k] = y_mu - chol_pos[:, k]
+            y_pos = np.c_[y_mu, y_p1, y_p2]
+
+            z_sigma = np.zeros([m, 2*n+1])
+            for k in range(2*n+1):
+                z_sigma[:, k, None] = H(y_pos[:, k, None])
+            z_mu = np.zeros([m, 1])
+            for k in range(2*n+1):
+                z_mu += Wm[0, k] * z_sigma[:, k, None]
+            P_z = R
+            for k in range(2*n+1):
+                P_z += Wc[0, k] * np.dot((z_sigma[:, k, None] - z_mu), (z_sigma[:, k, None] - z_mu).T)
+            
+            P_xz = np.zeros([n, m])
+            for k in range(2*n+1):
+                P_xz += Wc[0, k] * np.dot((y_pos[:, k, None] - y_mu), (z_sigma[:, k, None] - z_mu).T)
+            
+            K = np.dot(P_xz, np.linalg.pinv(P_z))
+            y_ukf[:, i, None] = y_mu + np.dot(K, x[:, i, None] - z_mu)
+            P0 = P_x - np.dot(np.dot(K, P_z), K.T)
+        return y_ukf
 

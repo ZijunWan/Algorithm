@@ -17,5 +17,5 @@ class SupportVectorMachine(object):
         self.model.fit(x, y)
 
     def testsvm(self, x, y):
-        score = self.model.score(x, y)
-        return score
+        prediction = self.model.predict(x)
+        return prediction
