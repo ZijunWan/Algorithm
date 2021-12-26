@@ -29,8 +29,7 @@ def get_g(x, y):
     g = lambda x: np.dot(H, x)
     R = np.dot(err, err.T) / l
     return g, R
-
-
+    
 
 if os.name == 'posix':
     trainPath = os.path.abspath('.') + '/Data/train.txt'
@@ -40,7 +39,7 @@ elif os.name == 'nt':
     testPath = os.path.abspath('.') + '\\Data\\test.txt'
     
 TrainX, TrainY = ReadData(trainPath, 'train')
-TestX = ReadData(testPath, 'test')
+# TestX, TestY = ReadData(testPath, 'test')
 
 # two types of Test DataSet
 TrainX = TrainX[:, 0:-500]
@@ -49,28 +48,31 @@ TestX = TrainX[:, -500:]
 TestY = TrainY[:, -500:]
 
 xTrainDim, TrainLen = np.shape(TrainX)
+print(str(xTrainDim)+" "+str(TrainLen))
 yTrainDim, TrainLen = np.shape(TrainY)
 xTestDim, TestLen = np.shape(TestX)
+print(str(yTrainDim)+" "+str(TestLen))
 
 
 # kalman filter
-cc = np.zeros([1, yTrainDim])
+cc_kf = np.zeros([1, yTrainDim])
 # kfModel = kalman()
 # kfModel.trainkf(TrainX, TrainY)
 # predictionKF = kfModel.testkf(TestX)
 # for i in range(0, yTrainDim):
 #     temp = np.corrcoef(predictionKF[i, :], TestY[i, :])
 #     cc[0, i] = temp[0, 1]
-# print("cc: ", cc)
+# print("KF-CC: ", cc_kf)
 
 # unscented kalman filter
+cc_ukf = np.zeros([1, yTrainDim])
 ukfModel = ukf(get_f, get_g)
 ukfModel.trainukf(TrainX, TrainY)
 predictionUKF = ukfModel.testukf(TestX)
 for i in range(0, yTrainDim):
   temp = np.corrcoef(predictionUKF[i, :], TestY[i, :])
-  cc[0, i] = temp[0, 1]
-print("CC-UKF: ", cc)
+  cc_ukf[0, i] = temp[0, 1]
+print("CC-UKF: ", cc_ukf)
 
 # plot the result
 # pltX = range(len(predictionUKF[0, :]))
